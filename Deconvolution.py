@@ -396,19 +396,38 @@ class Deconvolution:
         # add a support and solve the linear equation
         support.add(new_support)
         new_coefficient, sign = self._solve(support)
-        
+
+        if new_coefficient[new_support] < 0:
+            # coefficient of the new support is less than 0
+            # algorithm ended
+            return 'Done', old_coefficient, set(old_coefficient.keys())
+            
         while not sign:
             # sequential unrestricted minimizations and support reductions
-            
+            '''
             if new_coefficient[new_support] < 0:
                 # coefficient of the new support is less than 0
                 # algorithm ended
                 return 'Done', old_coefficient, set(old_coefficient.keys())
-            
+            '''
             # remove support and back to the start of the loop until all coefficients are greater than zero
             remove_support = self._remove_index(old_coefficient, new_coefficient)
-            old_coefficient = new_coefficient.copy()
+            # old_coefficient = new_coefficient.copy()
             if remove_support:
+                # find f_j in the next iteration
+                lambda_hat = old_coefficient[remove_support] / (old_coefficient[remove_support] - new_coefficient[remove_support])
+                f_j = dict()
+
+                for theta in list(set(old_coefficient.keys()) | set(new_coefficient.keys())):
+                    if theta in set(old_coefficient.keys()) & set(new_coefficient.keys()):
+                        f_j[theta] = old_coefficient[theta] + lambda_hat * (new_coefficient[theta] - old_coefficient[theta])
+                    elif theta in set(old_coefficient.keys()) - set(new_coefficient.keys()):
+                        f_j[theta] = (1 - lambda_hat) * old_coefficient[theta]
+                    elif theta in set(new_coefficient.keys()) - set(old_coefficient.keys()):
+                        f_j[theta] = lambda_hat * new_coefficient[theta]
+
+                old_coefficient = f_j.copy()
+
                 support.remove(remove_support)
                 new_coefficient, sign = self._solve(support)
         
