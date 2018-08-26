@@ -10,7 +10,7 @@ from scipy import stats
 from matplotlib import pyplot as plt
 
 class Deconvolution:
-    def __init__(self, Zn, method='least_square', P=None, K=None):
+    def __init__(self, Zn):
         '''
         Zn: observed data
         n: sample size
