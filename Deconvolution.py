@@ -404,32 +404,31 @@ class Deconvolution:
             
         while not sign:
             # sequential unrestricted minimizations and support reductions
-            '''
-            if new_coefficient[new_support] < 0:
-                # coefficient of the new support is less than 0
-                # algorithm ended
-                return 'Done', old_coefficient, set(old_coefficient.keys())
-            '''
+            
             # remove support and back to the start of the loop until all coefficients are greater than zero
             remove_support = self._remove_index(old_coefficient, new_coefficient)
             # old_coefficient = new_coefficient.copy()
             if remove_support:
                 # find f_j in the next iteration
                 lambda_hat = old_coefficient[remove_support] / (old_coefficient[remove_support] - new_coefficient[remove_support])
-                f_j = dict()
 
-                for theta in list(set(old_coefficient.keys()) | set(new_coefficient.keys())):
-                    if theta in set(old_coefficient.keys()) & set(new_coefficient.keys()):
-                        f_j[theta] = old_coefficient[theta] + lambda_hat * (new_coefficient[theta] - old_coefficient[theta])
-                    elif theta in set(old_coefficient.keys()) - set(new_coefficient.keys()):
-                        f_j[theta] = (1 - lambda_hat) * old_coefficient[theta]
-                    elif theta in set(new_coefficient.keys()) - set(old_coefficient.keys()):
-                        f_j[theta] = lambda_hat * new_coefficient[theta]
-
-                old_coefficient = f_j.copy()
+                old_coefficient = self._linear_combination(old_coefficient, new_coefficient, lambda_hat)
 
                 support.remove(remove_support)
                 new_coefficient, sign = self._solve(support)
+
+        if self.method == 'mle':
+            # to make sure of the monotonicity
+            lambda_choice = [1, 0.75, 0.5, 0.25]
+            for lambda0 in lambda_choice:
+                next_coefficient = self._linear_combination(coefficient, new_coefficient, lambda0)
+                if self._log_likelihood(next_coefficient) < self._log_likelihood(coefficient):
+                    new_coefficient = next_coefficient.copy()
+                    break
+        else:
+            # least square
+            pass
+
         
         return False, new_coefficient, support
     
@@ -459,4 +458,21 @@ class Deconvolution:
                 f[i] = S
         
         return f
+
+    def _linear_combination(self, coefficient1, coefficient2, lambda0):
+        '''
+        return coefficient1 + lambda0 * (coefficient2 - coefficient1)
+        '''
+        new_coefficient = dict()
+
+        for theta in list(set(coefficient1.keys()) | set(coefficient2.keys())):
+            if theta in set(coefficient1.keys()) & set(coefficient2.keys()):
+                new_coefficient[theta] = coefficient1[theta] + lambda0 * (coefficient2[theta] -  coefficient1[theta])
+            elif theta in set(coefficient1.keys()) - set(coefficient2.keys()):
+                new_coefficient[theta] = (1 - lambda0) * coefficient1[theta]
+            elif theta in set(coefficient2.keys()) - set(coefficient1.keys()):
+                new_coefficient[theta] = lambda0 * coefficient2[theta]
+
+        return new_coefficient
+
 
