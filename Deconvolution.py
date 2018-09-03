@@ -467,11 +467,18 @@ class Deconvolution:
 
         for theta in list(set(coefficient1.keys()) | set(coefficient2.keys())):
             if theta in set(coefficient1.keys()) & set(coefficient2.keys()):
-                new_coefficient[theta] = coefficient1[theta] + lambda0 * (coefficient2[theta] -  coefficient1[theta])
+                coefficient = coefficient1[theta] + lambda0 * (coefficient2[theta] -  coefficient1[theta])
             elif theta in set(coefficient1.keys()) - set(coefficient2.keys()):
-                new_coefficient[theta] = (1 - lambda0) * coefficient1[theta]
+                coefficient = (1 - lambda0) * coefficient1[theta]
             elif theta in set(coefficient2.keys()) - set(coefficient1.keys()):
-                new_coefficient[theta] = lambda0 * coefficient2[theta]
+                coefficient = lambda0 * coefficient2[theta]
+            else:
+                pass
+
+            if coefficient > 0:
+                new_coefficient[theta] = coefficient
+            else:
+                pass
 
         return new_coefficient
 
