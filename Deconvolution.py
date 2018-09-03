@@ -117,7 +117,7 @@ class Deconvolution:
         c2 = 0
         
         for zi in self.Zn:
-            c2 = (self._g(theta, zi) ** 2) / (self._g_bar(zi) ** 2)
+            c2 += (self._g(theta, zi) ** 2) / (self._g_bar(zi) ** 2)
 
         return c2 / self.n
 
