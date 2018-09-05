@@ -92,8 +92,8 @@ class Deconvolution:
 
 		
 		# A(alpha_1, ..., alpha_m) = b
-		A = np.mat(np.zeros((m, m)))
-		b = np.mat(np.zeros((m, 1)))
+		A = np.zeros((m, m))
+		b = np.zeros(m)
 		
 		# obtian A and b
 		for i in range(m):
@@ -104,10 +104,10 @@ class Deconvolution:
 				a = a / self.n
 
 				A[i, j] = a
-			b[i, 0] = 1 - 2 * self._c1(support[i])
+			b[i] = 1 - 2 * self._c1(support[i])
 			
 		# coefficients: (alpha_1, ..., alpha_m)
-		coef = np.matmul(A.I, b)
+		coef = np.linalg.solve(A, b)
 		coefficient = dict()
 		
 		# sign: denotes whether there is a negative term in coefficients
@@ -115,8 +115,8 @@ class Deconvolution:
 		sign = True
 		
 		for i in range(m):
-			coefficient[support[i]] = coef[i, 0]
-			if coef[i, 0] < 0:
+			coefficient[support[i]] = coef[i]
+			if coef[i] < 0:
 				sign = False
 		
 		return coefficient, sign
@@ -284,6 +284,8 @@ class Deconvolution:
 					S += coefficient[theta] * self._F(theta, X[i])
 				elif mode == 'pdf':
 					S += coefficient[theta] * self._g(theta, X[i])
+				elif mode == 'cdf_of_theta':
+					S += coefficient[theta] * (theta < X[i])
 
 			f[i] = S
 
@@ -315,6 +317,7 @@ class Deconvolution:
 		decide whether a tuning support process is needed
 		'''
 		if np.sum(np.abs(self._tau_derivative(self.coefficient)) < 0.01) == len(self.coefficient):
+			# all components of the vector _tau_derivative are neglectable
 			return False
 		else:
 			return True
@@ -330,8 +333,8 @@ class Deconvolution:
 
 		for i in range(len(support_set)):
 			theta = support_set[i]
-			hi = h[i]
-			coefficient_epsilon[theta - epsilon * hi] = self.coefficient[theta]
+			coefficient_epsilon[theta - epsilon * h[i]] = self.coefficient[theta]
+			# slightly tune the support grid, while keep the coef fixed
 
 		# print('add epsilon:', coefficient_epsilon)
 
@@ -350,12 +353,14 @@ class Deconvolution:
 			hi = 0
 
 			for zj in self.Zn:
-				hi +=  self._g(support_set[i], zj) * (zj - support_set[i]) / float(self.estimator(zj, mode='pdf', coefficient=coefficient))
+				# according to the derivative of theta of f_theta...
+				hi += self._g(support_set[i], zj) * (zj - support_set[i]) / float(self.estimator(zj, mode='pdf', coefficient=coefficient))
+				
 			
-			h[i] = - coefficient[support_set[i]] * hi / self.n
+			h[i] = - coefficient[support_set[i]] * hi
 
 		# print('tay derivative:', h)
-		return h
+		return h / self.n
 
 	def _mu(self, epsilon):
 		'''
