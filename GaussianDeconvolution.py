@@ -352,7 +352,7 @@ class Deconvolution:
 			for zj in self.Zn:
 				hi +=  self._g(support_set[i], zj) * (zj - support_set[i]) / float(self.estimator(zj, mode='pdf', coefficient=coefficient))
 			
-			h[i] = - coefficient[support_set[i]] * hi
+			h[i] = - coefficient[support_set[i]] * hi / self.n
 
 		# print('tay derivative:', h)
 		return h
