@@ -416,7 +416,7 @@ class Deconvolution:
 						pass
 				
 				if self._mu(epsilon_u) > 0:
-					c = 0.1
+					c = 0.9 # should be close to one
 					epsilon_0 = c * epsilon_n 
 					continue
 
