@@ -185,7 +185,7 @@ class Deconvolution:
 			self.support = {theta_0}
 			self.coefficient = {theta_0: 1}
 		else:
-			theta = np.random.choice(self.support_set, initialize, replace=True)
+			theta = np.random.choice(self.support_set, initialize, replace=False)
 			self.support = set(theta)
 			self.coefficient = {support: 1 / initialize for support in self.support}
 
