@@ -185,7 +185,7 @@ class Deconvolution:
 			self.support = {theta_0}
 			self.coefficient = {theta_0: 1}
 		else:
-			theta = np.random.choice(self.support_set, initialize)
+			theta = np.random.choice(self.support_set, initialize, replace=True)
 			self.support = set(theta)
 			self.coefficient = {support: 1 / initialize for support in self.support}
 
@@ -204,7 +204,7 @@ class Deconvolution:
 						self.support_set.extend(list(tuned_coefficient.keys()))
 						sign, self.coefficient, self.support = self._support_reduction(tuned_coefficient)
 						
-						print('log likelihood:', self._log_likelihood(self.coefficient))
+						print('(while tuning) log likelihood:', self._log_likelihood(self.coefficient))
 
 						tuning = self._tuning()
 				else:
@@ -316,8 +316,9 @@ class Deconvolution:
 		'''
 		decide whether a tuning support process is needed
 		'''
-		if np.sum(np.abs(self._tau_derivative(self.coefficient)) < 0.01) == len(self.coefficient):
+		#if np.sum(np.abs(self._tau_derivative(self.coefficient)) < 0.01) == len(self.coefficient):
 			# all components of the vector _tau_derivative are neglectable
+		if abs(self._mu_derivative(0)) < 0.01:
 			return False
 		else:
 			return True
