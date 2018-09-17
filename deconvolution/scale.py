@@ -203,7 +203,12 @@ class Deconvolution:
 		self.n = len(Z)
 		# self.support_set = list(np.linspace(np.max(self.Zn) - np.min(self.Zn), 0, num=self.n_split, endpoint=False))
 		# self.support_set = list(np.linspace(10, 0, num=self.n_split, endpoint=False))
-		self.support_set = list(np.linspace(np.std(Z), 0, num=self.n_split, endpoint=False))
+		# self.support_set = list(np.linspace(np.std(Z), 0, num=self.n_split, endpoint=False))
+		self.support_set = list(1 / np.std(self.Zn) * 2 ** np.linspace(-2, 10, num=self.n_split, endpoint=False))
+		
+		self.support_upper_bound = 1 / np.std(self.Zn) * 2 ** 10
+		self.support_lower_bound = 1 / np.std(self.Zn) * 2 ** (-2)
+		
 		self.learning_rate =learning_rate
 		
 		
@@ -357,7 +362,8 @@ class Deconvolution:
 		'''
 		decide whether a tuning support process is needed
 		'''
-		if np.sum(np.abs(self._tau_derivative(self.coefficient)) < 0.01) == len(self.coefficient):
+		#if np.sum(np.abs(self._tau_derivative(self.coefficient)) < 0.01) == len(self.coefficient):
+		if abs(self._mu_derivative(0)) < 0.01:
 			return False
 		else:
 			return True
@@ -369,10 +375,25 @@ class Deconvolution:
 		for i in range(len(support_set)):
 			theta = support_set[i]
 			hi = h[i]
-			if theta - epsilon * hi > 0:
-				coefficient_epsilon[theta - epsilon * hi] = self.coefficient[theta]
+			theta_new = theta - epsilon * hi
+# 			if theta - epsilon * hi > 0:
+# 				coefficient_epsilon[theta - epsilon * hi] = self.coefficient[theta]
+# 			else:
+# 				coefficient_epsilon[theta] = self.coefficient[theta]
+			if theta_new < self.support_lower_bound:
+				print("support out of bound! use lower bound as new support.")
+				if self.support_lower_bound in coefficient_epsilon.keys():
+					coefficient_epsilon[self.support_lower_bound] += self.coefficient[theta]
+				else:
+					coefficient_epsilon[self.support_lower_bound] = self.coefficient[theta]
+			elif theta_new > self.support_upper_bound:
+				print("support out of bound! use upper bound as new support.")
+				if self.support_upper_bound in coefficient_epsilon.keys():
+					coefficient_epsilon[self.support_upper_bound] += self.coefficient[theta]
+				else:
+					coefficient_epsilon[self.support_upper_bound] = self.coefficient[theta]
 			else:
-				coefficient_epsilon[theta] = self.coefficient[theta]
+				coefficient_epsilon[theta_new] = self.coefficient[theta]
 
 		# print('add epsilon:', coefficient_epsilon)
 
@@ -388,10 +409,13 @@ class Deconvolution:
 		for i in range(len(h)):
 			hi = 0
 			for zj in self.Zn:
-				hi +=  ((zj ** 2 + 1 / (support_set[i] ** 2)) * exp(- (support_set[i] ** 2) * (zj ** 2) / 2) - 1 / (sqrt(2 * pi) * (zj ** 2) * (support_set[i] ** 2))) / float(self.estimate(zj, mode='pdf', coefficient=coefficient))
-			h[i] = - coefficient[support_set[i]] * hi / self.n
+				if self.mode=="concave":
+					hi +=  ((zj ** 2 + 1 / (support_set[i] ** 2)) * exp(- (support_set[i] ** 2) * (zj ** 2) / 2) - 1 / (sqrt(2 * pi) * (zj ** 2) * (support_set[i] ** 2))) / float(self.estimate(zj, mode='pdf', coefficient=coefficient))
+				if self.mode=="standard":
+					hi += self._g(support_set[i], zj) * (1 / support_set[i] - support_set[i] * zj ** 2) / float(self.estimator(zj, mode='pdf', coefficient=coefficient))
+			h[i] = - coefficient[support_set[i]] * hi
 		# print('tay derivative:', h)
-		return h
+		return h/self.n
 
 	def _mu(self, epsilon):
 		mu = self._log_likelihood(self._add(epsilon)) - self._log_likelihood(self.coefficient)
@@ -410,20 +434,27 @@ class Deconvolution:
 
 
 	def _tuning_support(self):
-		epsilon_0 = self.learning_rate
-
-		while True:
+		epsilon_0 = 0.1
+		i = 0
+		#while True:
+		while i < 5:
+			i += 1
 			epsilon_l = 0
 			epsilon_u = epsilon_0
 
 			if self._mu(epsilon_u) < 0:
 				epsilon = epsilon_u
-				# print('epsilon:', epsilon)
+				print('epsilon:', epsilon)
 				return self._add(epsilon)
 			else:
 				sign = True
-				while sign:
+				j = 0
+				while sign and j < 10:
+					j += 1
 					epsilon_n = (epsilon_l * self._mu_derivative(epsilon_u) - epsilon_u * self._mu_derivative(epsilon_l)) / (self._mu_derivative(epsilon_u) - self._mu_derivative(epsilon_l))
+					if np.isnan(epsilon_n):
+						print("Warning: tau/mu derivative is nan!")
+						return self._add(epsilon_0)
 					if self._mu_derivative(epsilon_n) > 0:
 						epsilon_u = epsilon_n
 					else:
@@ -437,7 +468,8 @@ class Deconvolution:
 					c = 0.9
 					epsilon_0 = c * epsilon_n 
 					continue
-
+		return self._add(epsilon)
+	
 	def _F_concave_scale(self, theta, x):
 		if x > theta:
 			return 1
